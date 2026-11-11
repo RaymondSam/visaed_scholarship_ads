@@ -30,12 +30,12 @@ export function ScholarshipCard({ scholarship }: { scholarship: Scholarship }) {
       : "Deadline not specified";
   return (
     <article className="lift group relative flex h-full flex-col overflow-hidden rounded-3xl border border-line bg-card shadow-[0_16px_40px_-32px_rgb(20_34_31)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_22px_50px_-28px_rgb(20_34_31)]">
-      <div className={`h-1.5 ${scholarship.isFeatured ? "bg-gold" : "bg-teal"}`} />
+      <div className={`h-1.5 ${scholarship.isFeatured ? "bg-gold-bright" : "bg-navy"}`} />
       <div className="flex flex-1 flex-col p-5">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={shown} />
           {scholarship.isFeatured && shown === "published" ? (
-            <span className="rounded-full bg-teal/10 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-teal">Featured</span>
+            <span className="rounded-full bg-gold-soft px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-gold">Featured</span>
           ) : null}
           {scholarship.isSponsored ? (
             <span className="rounded-full border border-ink/20 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em]">Sponsored</span>
@@ -46,7 +46,7 @@ export function ScholarshipCard({ scholarship }: { scholarship: Scholarship }) {
             {scholarship.title}
           </Link>
         </h2>
-        <p className="mt-2 text-sm font-medium text-teal-dark">{scholarship.providerName}</p>
+        <p className="mt-2 text-sm font-medium text-navy">{scholarship.providerName}</p>
         <div className="mt-5 space-y-2">
           <Meta>{fundingSummary(scholarship)}</Meta>
           <Meta>{deadline}</Meta>
@@ -55,7 +55,7 @@ export function ScholarshipCard({ scholarship }: { scholarship: Scholarship }) {
             {scholarship.studyLevels.length ? ` · ${scholarship.studyLevels.map((level) => LEVEL_LABELS[level]).join(", ")}` : ""}
           </Meta>
         </div>
-        <p className="mt-auto pt-5 text-sm font-semibold text-teal">Read the listing</p>
+        <p className="mt-auto pt-5 text-sm font-semibold text-gold">Read the listing</p>
       </div>
     </article>
   );

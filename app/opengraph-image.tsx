@@ -13,12 +13,12 @@ export default function OpenGraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#0d5c56",
-          color: "#f4f1ea",
+          background: "#0c1e46",
+          color: "#f7f4ea",
           padding: "72px",
         }}
       >
-        <div style={{ fontSize: 28, letterSpacing: 2 }}>VISAED SCHOLARSHIPS</div>
+        <div style={{ fontSize: 28, letterSpacing: 2, color: "#c6a34e" }}>VISAED INTERNATIONAL</div>
         <div style={{ fontSize: 72, lineHeight: 1.05, maxWidth: 900 }}>Scholarships with the facts checked.</div>
         <div style={{ fontSize: 28 }}>Deadlines, funding, and eligibility, with the date we last checked.</div>
       </div>

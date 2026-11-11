@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Fraunces, Outfit } from "next/font/google";
-import { SiteFooter, SiteHeader } from "@/components/chrome";
+import { Outfit, Playfair_Display } from "next/font/google";
+import { SiteFooter, SiteHeader, WhatsAppButton } from "@/components/chrome";
 import { currentProfile } from "@/lib/auth/current";
 import { isLocalMode, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const sans = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
-const display = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", display: "swap" });
+const display = Playfair_Display({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-playfair", display: "swap" });
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {children}
         </main>
         <SiteFooter />
+        <WhatsAppButton />
       </body>
     </html>
   );
