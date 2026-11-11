@@ -1,7 +1,6 @@
--- Visaed Scholarships — draft database contract
--- Target: Supabase Postgres
--- Status: design artifact. The first implementation migration should be
--- created from this file. After that, supabase/migrations is authoritative.
+-- Visaed Scholarships — original design contract
+-- The shipped database is supabase/migrations. If that migration disagrees
+-- with this file, the migration wins. Update the data-model doc in the same change.
 --
 -- Assumes Supabase auth helpers: auth.uid(), auth.role(), auth.users.
 -- Do not run this against a non-Supabase Postgres without those.

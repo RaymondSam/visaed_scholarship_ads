@@ -3,9 +3,12 @@
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { openPayload, sealPayload, MFA_COOKIE, NOTICE_COOKIE, safeNextPath, SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth/session";
+import { currentProfile } from "@/lib/auth/current";
+import { sealPayload, MFA_COOKIE, NOTICE_COOKIE, safeNextPath, SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth/session";
+import { beginSupabaseMfa, completeSupabasePassword, confirmSupabaseMfa, signInSupabase, signOutSupabase } from "@/lib/auth/supabase-session";
 import { newMfaSecret, verifyTotp } from "@/lib/auth/totp";
 import { getRepository, verifyPassword } from "@/lib/data/local-store";
+import { isLocalMode } from "@/lib/site";
 import { CONTACT_REASONS, USER_ROLES, type ContactReason, type UserRole } from "@/lib/domain/types";
 import { scholarshipFromForm } from "@/lib/scholarships/form";
 import { siteUrl } from "@/lib/site";
@@ -24,12 +27,7 @@ async function setSession(profileId: string, aal: "aal1" | "aal2") {
 }
 
 async function actor() {
-  const jar = await cookies();
-  const session = await openPayload(jar.get(SESSION_COOKIE)?.value);
-  if (!session) return null;
-  const profile = await getRepository().getProfileById(session.sub);
-  if (!profile || profile.status !== "active") return null;
-  return { ...profile, aal: session.aal };
+  return currentProfile();
 }
 
 function destinationFor(role: string, next: string): string {
@@ -42,6 +40,11 @@ export async function signIn(_state: ActionState, formData: FormData): Promise<A
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const next = safeNextPath(String(formData.get("next") ?? "/account"));
+  if (!isLocalMode()) {
+    const result = await signInSupabase(email, password, String(formData.get("code") ?? ""));
+    if ("error" in result) return result.mfa ? { error: result.error || undefined, message: "mfa" } : { error: result.error };
+    redirect(destinationFor(result.role, next));
+  }
   const profile = await getRepository().getProfileByEmail(email.trim());
   if (!profile || profile.status !== "active" || !verifyPassword(password, profile.passwordHash)) {
     return { error: "Email or password is not valid." };
@@ -69,6 +72,7 @@ export async function signIn(_state: ActionState, formData: FormData): Promise<A
 }
 
 export async function signOut() {
+  if (!isLocalMode()) await signOutSupabase();
   const jar = await cookies();
   jar.delete(SESSION_COOKIE);
   jar.delete(MFA_COOKIE);
@@ -78,19 +82,35 @@ export async function signOut() {
 export async function forgotPassword(_state: ActionState, formData: FormData): Promise<ActionState> {
   const email = String(formData.get("email") ?? "");
   await getRepository().requestPasswordReset(email.trim(), siteUrl());
-  return { message: "If an active account uses that email, a reset link is ready in the local mailbox." };
+  return {
+    message: isLocalMode()
+      ? "If an active account uses that email, a reset link is ready in the local mailbox."
+      : "If an active account uses that email, a reset link is on its way.",
+  };
 }
 
 export async function resetPassword(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    await getRepository().completePasswordReset(String(formData.get("token") ?? ""), String(formData.get("password") ?? ""));
+    if (!isLocalMode()) await completeSupabasePassword(String(formData.get("password") ?? ""), "reset");
+    else await getRepository().completePasswordReset(String(formData.get("token") ?? ""), String(formData.get("password") ?? ""));
   } catch (error) {
     return { error: error instanceof Error ? error.message : "The password could not be reset." };
   }
+  if (!isLocalMode()) await signOutSupabase();
   redirect("/login?reason=reset");
 }
 
 export async function acceptInvite(_state: ActionState, formData: FormData): Promise<ActionState> {
+  if (!isLocalMode()) {
+    let role = "student";
+    try {
+      const profile = await completeSupabasePassword(String(formData.get("password") ?? ""), "invite");
+      role = profile.role;
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "The invite could not be accepted." };
+    }
+    redirect(role === "student" ? "/account" : "/admin");
+  }
   let profile: Awaited<ReturnType<ReturnType<typeof getRepository>["acceptInvite"]>>;
   try {
     profile = await getRepository().acceptInvite(String(formData.get("token") ?? ""), String(formData.get("password") ?? ""));
@@ -120,17 +140,34 @@ export async function updateProfile(_state: ActionState, formData: FormData): Pr
 export async function beginMfa() {
   const user = await actor();
   if (!user) redirect("/login?next=/account/security");
+  if (!isLocalMode()) {
+    try {
+      await beginSupabaseMfa();
+    } catch (error) {
+      await rememberErrors("/account/security", [error instanceof Error ? error.message : "Enrollment could not be started."]);
+    }
+    redirect("/account/security");
+  }
   await getRepository().setMfa(user.id, newMfaSecret(), false);
   redirect("/account/security");
 }
 
 export async function confirmMfa(formData: FormData) {
   const user = await actor();
+  const code = String(formData.get("code") ?? "");
+  if (!isLocalMode()) {
+    try {
+      await confirmSupabaseMfa(code);
+    } catch (error) {
+      await rememberErrors("/account/security", [error instanceof Error ? error.message : "That code does not match."]);
+      redirect("/account/security");
+    }
+    redirect(user?.role === "super_admin" ? "/admin/users" : "/admin");
+  }
   if (!user?.mfaSecret) {
     await rememberErrors("/account/security", ["Start enrollment first."]);
     redirect("/account/security");
   }
-  const code = String(formData.get("code") ?? "");
   if (!verifyTotp(user.mfaSecret, user.email, code)) {
     await rememberErrors("/account/security", ["That code does not match."]);
     redirect("/account/security");
@@ -213,7 +250,11 @@ export async function inviteUser(_state: ActionState, formData: FormData): Promi
   } catch (error) {
     return { error: error instanceof Error ? error.message : "The invite could not be sent." };
   }
-  return { message: "Invite created. Open the local mailbox to copy the link." };
+  return {
+    message: isLocalMode()
+      ? "Invite created. Open the local mailbox to copy the link."
+      : "Invite sent. The person sets a password from that email.",
+  };
 }
 
 export async function resendInvite(formData: FormData) {

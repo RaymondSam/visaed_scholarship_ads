@@ -1,8 +1,8 @@
 # Next steps after phase 1
 
-Phase 1 is a local MVP. It does not talk to Supabase or Vercel. Listings, accounts, messages, and the audit log live in `data/local-db.json`. Invite and reset mail is written to `/dev/mailbox` while `next dev` is running.
+Phase 1 can still run on this machine with `DATA_PROVIDER=local`. That mode writes `data/local-db.json` and does not talk to Supabase. Vercel cannot host that file. Production sets `DATA_PROVIDER=supabase` and uses the migration in `supabase/migrations`.
 
-Do not deploy this build as a public site. The local database file is not a production database, the development accounts are printed on the login page in development, and `DATA_PROVIDER=local` is the only mode that works.
+Do not set `DATA_PROVIDER=local` on Vercel. The function filesystem is read-only, so creating `data/` fails and the public pages error.
 
 ## What already works locally
 
@@ -25,26 +25,26 @@ Development accounts, password `local-dev-pass-12`:
 
 Reset the sample data with `npm run db:reset`, then restart the app.
 
-## Seam to replace
+## Seam
 
-`getRepository()` in `lib/data/local-store.ts` returns the file store when `DATA_PROVIDER` is `local` or unset. Setting it to `supabase` currently throws, on purpose. The replacement should implement the same methods: public reads, staff writes, invites, audit, contact, and the deadline job.
+`getRepository()` in `lib/data/local-store.ts` returns the file store when `DATA_PROVIDER` is `local`. It returns `lib/data/supabase-store.ts` when `DATA_PROVIDER` is `supabase`. Listing reads and staff edits use the signed-in Supabase client, so row level security still applies. The service role is limited to account administration, contact insert, rate limits, and `close_expired_scholarships()`.
 
-Authorization in the local store is the stand-in for Row Level Security. When Supabase is connected, keep the same checks in server actions and also enable the policies in `docs/proposed-schema.sql`.
+Apply `supabase/migrations` before pointing an environment at that project. Create the first super admin with the break-glass SQL in `docs/05-auth-and-authorization.md`. Authorization checks in server actions stay in place alongside the policies.
 
 ## 1. Connect Supabase
 
 1. Create two projects, dev and production, on a plan that will not pause. Choose the region deliberately and write it down for the privacy notice.
-2. Install the Supabase CLI and add `supabase/config.toml`.
-3. Turn `docs/proposed-schema.sql` into `supabase/migrations/0001_init.sql`. Apply it to dev. Do not edit production tables from the dashboard.
-4. In Auth settings for each project: turn public sign-up off, set the site URL and redirect allow-list (`/auth/callback`, `/auth/invite`), set the minimum password length to 12, and turn on leaked-password protection.
-5. Create the `scholarship-media` bucket as specified in the schema file.
-6. Add server-only env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Never prefix the service-role key with `NEXT_PUBLIC_`.
+2. `supabase/config.toml` is in the repo. Install the Supabase CLI and Docker, then run `supabase start` for a local stack.
+3. Apply `supabase/migrations/20261111120000_init.sql` to dev. Do not edit production tables from the dashboard.
+4. In Auth settings for each project: turn public sign-up off, set the site URL and redirect allow-list (`/auth/callback`, `/auth/confirm`, `/auth/invite`, `/auth/reset`), set the minimum password length to 12, and turn on leaked-password protection.
+5. The migration creates the `scholarship-media` bucket. Confirm it exists after the migration.
+6. Set `DATA_PROVIDER=supabase`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. Never prefix the service-role key with `NEXT_PUBLIC_`.
 7. Create the first super admin with the break-glass SQL in `docs/05-auth-and-authorization.md`.
-8. Replace local password sessions with `@supabase/ssr`. Map invites to `inviteUserByEmail` and `app_metadata.role`. Do not import the local password hashes. Re-invite real people.
-9. Point scholarship reads and writes at Postgres through the signed-in user client so RLS still applies. Keep the service role for `list_accounts`, `apply_account_change`, contact insert, and `close_expired_scholarships`.
-10. Move cover uploads to Storage. Delete the local `data/uploads` path from the running app.
-11. Add a database test that the anon key cannot read a draft, a contact message, or `scholarship_internal`.
-12. Remove the development account box and the `/dev/mailbox` page once Auth email is delivering to a real inbox.
+8. Sessions, invites, and password reset already use `@supabase/ssr` when `DATA_PROVIDER=supabase`. Do not import the local password hashes. Re-invite real people.
+9. Scholarship reads and writes already use the signed-in user client. The service role stays limited to `list_accounts`, `apply_account_change`, contact insert, and `close_expired_scholarships`.
+10. Cover uploads already go to Storage at `scholarships/{id}/cover.{ext}`.
+11. Against a running project, confirm the anon key cannot read a draft, a contact message, or `scholarship_internal`.
+12. Remove the development account box and the `/dev/mailbox` page once Auth email is delivering to a real inbox. The box is already hidden when `DATA_PROVIDER` is not `local`.
 
 ## 2. Connect email
 

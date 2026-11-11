@@ -13,3 +13,5 @@ data/uploads
 coverage
 tsconfig.tsbuildinfo
 next-env.d.ts
+supabase/.branches
+supabase/.temp

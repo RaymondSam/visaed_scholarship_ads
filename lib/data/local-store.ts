@@ -27,6 +27,8 @@ import type {
   UserRole,
 } from "@/lib/domain/types";
 import { createSeedDatabase } from "@/lib/data/seed";
+import { supabaseRepository } from "@/lib/data/supabase-store";
+import { dataProvider } from "@/lib/site";
 
 const ALLOWED_COVERS: Record<string, string> = {
   jpg: "image/jpeg",
@@ -774,6 +776,14 @@ export const localRepository = {
     return { bytes: readFileSync(file), contentType: ALLOWED_COVERS[ext] };
   },
 
+  async resolveCover(scholarshipId: string) {
+    for (const ext of ["webp", "png", "jpg", "jpeg"]) {
+      const file = this.readCover(scholarshipId, ext);
+      if (file) return { kind: "bytes" as const, bytes: file.bytes, contentType: file.contentType };
+    }
+    return null;
+  },
+
   async homeRails() {
     return withDb((db) => {
       const now = new Date();
@@ -809,9 +819,6 @@ export const localRepository = {
 };
 
 export function getRepository() {
-  const provider = process.env.DATA_PROVIDER ?? "local";
-  if (provider === "local") return localRepository;
-  throw new Error(
-    "Supabase is not connected yet. Keep DATA_PROVIDER=local, or follow docs/10-next-steps-after-phase-1.md.",
-  );
+  if (dataProvider() === "supabase") return supabaseRepository;
+  return localRepository;
 }

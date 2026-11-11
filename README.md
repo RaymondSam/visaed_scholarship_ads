@@ -4,14 +4,14 @@ Working title for a scholarship advertising site. Admins publish programs. Regis
 
 ## Run the local MVP
 
-Phase 1 runs on this machine. It does not connect to Supabase or Vercel.
+With `DATA_PROVIDER=local` (the default), the app stores listings in `data/local-db.json` and does not need Supabase.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000. Sample listings are fictional. Development accounts and the path to connect the real services are in [docs/10-next-steps-after-phase-1.md](docs/10-next-steps-after-phase-1.md).
+Open http://localhost:3000. Sample listings are fictional. Development accounts and the production setup are in [docs/10-next-steps-after-phase-1.md](docs/10-next-steps-after-phase-1.md).
 
 ```bash
 npm test
@@ -19,7 +19,13 @@ npm run typecheck
 npm run db:reset
 ```
 
-The architecture below is still the build baseline. The local app follows it with a file database until those services are connected.
+## Run against Supabase
+
+Apply `supabase/migrations`, put the URL and keys in `.env.local`, and set `DATA_PROVIDER=supabase`. Vercel must use this mode. The file database is refused there because the serverless filesystem cannot create `data/`.
+
+Allow these redirect paths on the Supabase project: `/auth/callback`, `/auth/confirm`, `/auth/invite`, and `/auth/reset`. Create the first super admin with the break-glass SQL in [docs/05-auth-and-authorization.md](docs/05-auth-and-authorization.md).
+
+The architecture below is the build baseline. Local development can keep the file database. Vercel uses Supabase.
 
 The public brand, domain, and legal entity are still unconfirmed. The folder name `visaed_scholarship_ads` and the parent folder `satasol` are recorded as-is and are not treated as a confirmed company structure.
 

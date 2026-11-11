@@ -23,6 +23,7 @@ export default async function LoginPage({
       <div className="rounded-[1.75rem] border border-line bg-card p-6 shadow-[0_18px_40px_-32px_rgb(20_34_31)] md:p-8">
         <PageHeader eyebrow="Invite only" title="Log in" lede="Accounts are created by a super admin. There is no public registration." />
         {reason === "reset" ? <p className="mt-4 rounded-2xl bg-ok/10 px-4 py-3 text-sm text-ok">Password saved. Sign in with the new password.</p> : null}
+        {reason === "link" ? <p className="mt-4 rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">That link is not valid or has expired.</p> : null}
         {reason === "suspended" ? <p className="mt-4 rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">This account is suspended.</p> : null}
         <LoginForm nextPath={nextPath} showDevHints={process.env.NODE_ENV !== "production" && isLocalMode()} />
         <div className="mt-5 flex flex-wrap gap-4 text-sm">

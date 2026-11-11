@@ -3,6 +3,7 @@ import { InviteForm } from "@/components/invite-form";
 import { changeAccount, deleteAccount, resendInvite, takeNotice } from "@/lib/actions";
 import { currentProfile } from "@/lib/auth/current";
 import { ROLE_LABELS } from "@/lib/domain/types";
+import { isLocalMode } from "@/lib/site";
 import { getRepository } from "@/lib/data/local-store";
 
 export const metadata = { title: "Users" };
@@ -16,7 +17,11 @@ export default async function UsersPage() {
   return (
     <div>
       <h1 className="text-3xl font-semibold">Users</h1>
-      <p className="mt-2 text-sm text-muted">Invites are delivered to the local mailbox until email is connected.</p>
+      <p className="mt-2 text-sm text-muted">
+        {isLocalMode()
+          ? "Invites are delivered to the local mailbox until email is connected."
+          : "Invites are emailed. The person sets a password from that message."}
+      </p>
       {notices.length ? <p className="mt-4 text-sm text-danger">{notices.join(" ")}</p> : null}
       <div className="mt-6">
         <InviteForm />
